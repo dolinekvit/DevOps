@@ -1,0 +1,36 @@
+services:
+  traefik:
+    image: traefik:latest
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposebydefault=false"
+      - "--providers.docker.network=proxy"
+      - "--entrypoints.web.address=:6000"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.websecure.address=443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--providers.file.filename=/dynamic/tls.yaml"
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`dashboard.docker.localhost`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=<PASTE_HASH_HERE>"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
+    ports:
+      - 6000:6000
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:var/run/docker.sock
+      - ./certs:/certs:ro
+      - ./dynamic:/dynamic:ro
+networks:
+  proxy:
+    name: proxy
