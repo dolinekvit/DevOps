@@ -1,0 +1,10 @@
+services:
+  traefik:
+    image: traefik:latest
+    command:
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:6000"
+    ports:
+      - 6000:6000
+    volumes:
+      - /var/run/docker.sock:var/run/docker.sock
