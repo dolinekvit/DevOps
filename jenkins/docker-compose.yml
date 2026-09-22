@@ -2,22 +2,49 @@ services:
   jenkins:
     container_name: jenkins
     build:
+      context: .
       dockerfile: Dockerfile
-    restart: on-failure
+    restart: unless-stopped
     environment:
-        DOCKER_HOST: tcp://docker:2376
-        DOCKER_CERT_PATH: /certs/client
-        DOCKER_TLS_VERIFY: 1
-    ports:
-      - 8080:8080
-      - 50000:50000
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: 1
     volumes:
       - jenkins-data:/var/jenkins_home
       - jenkins-docker-certs:/certs/client:ro
     networks:
+      - proxy
       - jenkins
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jenkins.rule=Host(`jenkins.${DOMAIN}`)"
+      - "traefik.http.routers.jenkins.entrypoints=websecure"
+      - "traefik.http.services.jenkins.loadbalancer.server.port=8080"
+      - "traefik.docker.network=proxy"
+    depends_on:
+      - dind
+
+  dind:
+    image: docker:dind
+    container_name: jenkins-dind
+    restart: unless-stopped
+    privileged: true
+    hostname: docker
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - jenkins-docker-certs:/certs/client
+      - jenkins-data:/var/jenkins_home
+    networks:
+      jenkins:
+        aliases:
+          - docker
+
 networks:
+  proxy:
+    external: true
   jenkins:
+
 volumes:
   jenkins-data:
   jenkins-docker-certs:
